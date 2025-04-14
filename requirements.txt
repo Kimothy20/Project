@@ -1,0 +1,12 @@
+torch
+torchvision
+torchaudio
+lightning
+comet-ml
+soundfile
+python-dotenv
+pandas
+numpy
+sox
+torchmetrics
+flashlight-text
