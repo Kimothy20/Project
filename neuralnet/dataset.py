@@ -9,8 +9,6 @@ import numpy as np
 from torch.utils.data import DataLoader, Dataset
 from utils import TextTransform       # Comment this for engine inference
 
-torchaudio.set_audio_backend("soundfile")
-
 class LogMelSpec(nn.Module):
     def __init__(self, sample_rate=16000, n_mels=128, hop_length=160):
         super(LogMelSpec, self).__init__()
