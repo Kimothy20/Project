@@ -1,3 +1,6 @@
+import torchaudio
+torchaudio.set_audio_backend("soundfile")
+
 import comet_ml
 import pytorch_lightning as pl
 import os 
