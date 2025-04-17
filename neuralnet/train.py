@@ -1,5 +1,9 @@
-import torchaudio
-torchaudio.set_audio_backend("soundfile")
+import os
+# must come before ANY torchaudio import:
+os.environ["TORCHAUDIO_AUDIO_BACKEND"] = "soundfile"
+
+import torchaudio   # now it will initialize with soundfile
+# no need to call set_audio_backend() any more
 
 import comet_ml
 import pytorch_lightning as pl
