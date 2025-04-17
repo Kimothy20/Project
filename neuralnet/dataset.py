@@ -1,6 +1,7 @@
+import torchaudio
+torchaudio.set_audio_backend("soundfile")
 import pytorch_lightning as pl
 import json
-import torchaudio
 import torch
 import torch.nn as nn
 import torchaudio.transforms as transforms
