@@ -54,7 +54,9 @@ class CustomAudioDataset(Dataset):
 
     def __getitem__(self, idx):
         item = self.data[idx]
-        file_path = item['key']
+        #file_path = item['key']
+        fname = os.path.basename(item['key'])  # strip off the C:\…\ prefix
+        file_path = os.path.join("/content/gcs_converted_clips", "clips", fname)
 
         try:
             data, sample_rate = sf.read(file_path)        # Point to location of audio data
@@ -88,7 +90,7 @@ class CustomAudioDataset(Dataset):
 
 # Lightning Data Module
 class SpeechDataModule(pl.LightningDataModule):
-    def __init__(self, batch_size, train_json, test_json, num_workers):
+    def __init__(self, batch_size, train_json, test_json, num_workers=2):
         super().__init__()
         self.batch_size = batch_size
         self.train_json = train_json
