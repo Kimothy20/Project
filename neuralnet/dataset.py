@@ -1,14 +1,12 @@
-import os
+import io, os, json
 import pytorch_lightning as pl
-import json
 import soundfile as sf
-import torchaudio
 import torch
 import torch.nn as nn
 import torchaudio.transforms as transforms
-import numpy as np
 
 from torch.utils.data import DataLoader, Dataset
+from google.cloud import storage
 from utils import TextTransform       # Comment this for engine inference
 
 class LogMelSpec(nn.Module):
@@ -29,25 +27,25 @@ def get_featurizer(sample_rate=16000, n_mels=128, hop_length=160):
 
 # Custom Dataset Class
 class CustomAudioDataset(Dataset):
-    def __init__(self, json_path, transform=None, log_ex=True, valid=False):
+    def __init__(self, json_path, bucket_name, transform=None, log_ex=True, valid=False):
         print(f'Loading json data from {json_path}')
         with open(json_path, 'r') as f:
             self.data = json.load(f)
+
+        self.bucket_name = bucket_name
+        self.client = storage.Client() # uses your Colab auth
 
         # Initialize TextProcess for text processing    
         self.text_process = TextTransform()                 
         self.log_ex = log_ex
 
-        if valid:
-            self.audio_transforms = torch.nn.Sequential(
-                LogMelSpec()
-            )
-        else:
-            self.audio_transforms = torch.nn.Sequential(
-                LogMelSpec(),
+        base_transforms = [transforms.MelSpectrogram(sample_rate=16000, n_mels=128, hop_length=160)]
+        if not valid:
+            base_transforms += [
                 transforms.FrequencyMasking(freq_mask_param=15),
                 transforms.TimeMasking(time_mask_param=27)
-            )
+            ]
+        self.audio_transforms = nn.Sequential(*base_transforms)
 
 
     def __len__(self):
@@ -55,35 +53,46 @@ class CustomAudioDataset(Dataset):
 
     def __getitem__(self, idx):
         item = self.data[idx]
-        #file_path = item['key']
         fname = os.path.basename(item['key'])  # strip off the C:\…\ prefix
-        file_path = os.path.join("/content/gcs_converted_clips", "clips", fname)
+        blob_path = f"converted_clips/clips/{fname}"
 
         try:
-            data, sample_rate = sf.read(file_path)        # Point to location of audio data
+            # dounload bytes
+            bucket = self.client.bucket(self.bucket_name)
+            blob = bucket.blob(blob_path)
+            audio_bytes = blob.download_as_bytes()
+            # read with soundfile from memory
+            bio = io.BytesIO(audio_bytes)
+            data, sample_rate = sf.read(bio)       
             waveform = torch.from_numpy(data).float().unsqueeze(0)
-            utterance = item['text'].lower()                # Point to sentence of audio data
+            #process transcript
+            utterance = item['text'].lower()               
             label = self.text_process.text_to_int(utterance)
+            # compute featues
             spectrogram = self.audio_transforms(waveform)   # (channel, feature, time)
             spec_len = spectrogram.shape[-1] // 2
             label_len = len(label)
 
             if spec_len < label_len:
-                raise Exception('spectrogram len is bigger then label len')
+                raise ValueError(f"spec shorter than label for {fname}")
             if spectrogram.shape[0] > 1:
-                raise Exception('dual channel, skipping audio file %s' %file_path)
+                raise ValueError(f"dual channel, skipping {fname}")
             if spectrogram.shape[2] > 2650*4:
-                raise Exception('spectrogram to big. size %s' %spectrogram.shape[2])
+                raise ValueError(f"spectrogram too big: {spectrogram.shape[2]}")
             if label_len == 0:
-                raise Exception('label len is zero... skipping %s' %file_path)
+                raise ValueError(f"empty label for {fname}")
 
             return spectrogram, label, spec_len, label_len
 
         except Exception as e:
             # Print for debugging if letters in sentences have transform issues
             if self.log_ex:
-                print(str(e), file_path)
-            return self.__getitem__(idx - 1 if idx != 0 else idx + 1)
+                print(f"Skip {fname} because {e}")
+            #fallback to a different index
+            if (len(self.data) == 1:
+                raise
+            new_idx = idx - 1 if idx > 0 else idx + 1
+            return self.__getitem__(new_idx)
         
     def describe(self):
         return self.data.describe()
@@ -100,8 +109,10 @@ class SpeechDataModule(pl.LightningDataModule):
 
     def setup(self, stage=None):
         self.train_dataset = CustomAudioDataset(self.train_json,
+                                                bucket_name="realtime-asr-project",
                                                 valid=False)
         self.test_dataset = CustomAudioDataset(self.test_json, 
+                                               bucket_name="realtime-asr-project",
                                                valid=True)
         
     def data_processing(self, data):
