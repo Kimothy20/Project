@@ -1,3 +1,4 @@
+import os
 import pytorch_lightning as pl
 import json
 import soundfile as sf
@@ -90,7 +91,7 @@ class CustomAudioDataset(Dataset):
 
 # Lightning Data Module
 class SpeechDataModule(pl.LightningDataModule):
-    def __init__(self, batch_size, train_json, test_json, num_workers=2):
+    def __init__(self, batch_size, train_json, test_json, num_workers):
         super().__init__()
         self.batch_size = batch_size
         self.train_json = train_json
