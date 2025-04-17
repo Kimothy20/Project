@@ -91,7 +91,7 @@ class CustomAudioDataset(Dataset):
 
 # Lightning Data Module
 class SpeechDataModule(pl.LightningDataModule):
-    def __init__(self, batch_size, train_json, test_json, num_workers):
+    def __init__(self, batch_size, train_json, test_json, num_workers=2):
         super().__init__()
         self.batch_size = batch_size
         self.train_json = train_json
