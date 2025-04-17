@@ -89,7 +89,7 @@ class CustomAudioDataset(Dataset):
             if self.log_ex:
                 print(f"Skip {fname} because {e}")
             #fallback to a different index
-            if (len(self.data) == 1:
+            if len(self.data) == 1:
                 raise
             new_idx = idx - 1 if idx > 0 else idx + 1
             return self.__getitem__(new_idx)
