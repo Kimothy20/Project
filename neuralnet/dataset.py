@@ -1,7 +1,7 @@
-import torchaudio
-torchaudio.set_audio_backend("soundfile")
 import pytorch_lightning as pl
 import json
+import soundfile as sf
+import torchaudio
 import torch
 import torch.nn as nn
 import torchaudio.transforms as transforms
@@ -57,7 +57,8 @@ class CustomAudioDataset(Dataset):
         file_path = item['key']
 
         try:
-            waveform, _ = torchaudio.load(file_path)        # Point to location of audio data
+            data, sample_rate = sf.read(file_path)        # Point to location of audio data
+            waveform = torch.from_numpy(data).float()unsqueeze(0)
             utterance = item['text'].lower()                # Point to sentence of audio data
             label = self.text_process.text_to_int(utterance)
             spectrogram = self.audio_transforms(waveform)   # (channel, feature, time)
