@@ -58,7 +58,7 @@ class CustomAudioDataset(Dataset):
 
         try:
             data, sample_rate = sf.read(file_path)        # Point to location of audio data
-            waveform = torch.from_numpy(data).float()unsqueeze(0)
+            waveform = torch.from_numpy(data).float().unsqueeze(0)
             utterance = item['text'].lower()                # Point to sentence of audio data
             label = self.text_process.text_to_int(utterance)
             spectrogram = self.audio_transforms(waveform)   # (channel, feature, time)
